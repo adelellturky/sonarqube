@@ -1,0 +1,55 @@
+---
+- name: Install the repository RPM
+  command: dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+  notify: Disable the built-in PostgreSQL module
+
+- meta: flush_handlers
+
+- name: Install PostgreSQL
+  dnf:
+    name:
+      -  postgresql14-server
+    state: present
+  notify: initialize the database
+
+- meta: flush_handlers
+
+- name: Start and Enabled PostgreSQL
+  systemd:
+    name: postgresql-14
+    enabled: yes
+    state:  started
+
+- name: Update Postgres User Password
+  user:
+    name: postgres
+    password: "{{ password }}"
+
+- name: Create Sonar User 
+  command: createuser sonar 
+  become: yes
+  become_user: postgres
+
+- name: check sonar user in postgres
+  command: | 
+    psql -U postgres -c "SELECT usename FROM pg_user;"
+  register: pg_users
+  become: yes
+  become_user: postgres
+
+- name: Print the pg_users
+  debug:
+    var: pg_users.stdout_lines
+  become: yes
+  become_user: postgres
+
+- name: Execute SQL queries in PostgreSQL
+  become: yes
+  become_user: postgres
+  shell: | 
+    psql -U postgres -c "ALTER USER sonar WITH ENCRYPTED PASSWORD 'p@ssw@rd';"
+    psql -U postgres -c "CREATE DATABASE sonarqube OWNER sonar;"
+    psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE sonarqube to sonar;"
+  notify: Reload The Postgres Service
+
+- meta: flush_handlers

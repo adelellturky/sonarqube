@@ -1,0 +1,2 @@
+[SonarServer]
+xx.xx.xx.xx ansible_user=root ansible_ssh_pass="password" ansible_port=22

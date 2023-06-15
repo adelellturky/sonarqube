@@ -1,0 +1,1 @@
+ansible-playbook -i hosts mplay.yml -e "password=123456"

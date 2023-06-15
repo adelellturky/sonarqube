@@ -1,0 +1,91 @@
+---
+- name: Add lines to sysctl.conf
+  blockinfile:
+    path: /etc/sysctl.conf
+    block: |
+          vm.max_map_count=262144
+          fs.file-max=65536
+          ulimit -n 65536
+          ulimit -n 4096
+
+- name: Add lines to limits.conf
+  blockinfile:
+    path: /etc/security/limits.conf
+    insertbefore: End of file$
+    block: |
+      sonarqube   -   nofile    65536
+      sonarqube   -   nproc     4096
+    
+- name: Reboot the server
+  command: reboot
+  async: 0
+  poll: 0
+  ignore_errors: true
+  changed_when: false
+  #async: This parameter specifies that the command should be executed asynchronously, meaning Ansible will not wait for it to complete before moving on to the next task. The value "0" indicates that the command should not be executed asynchronously.
+  #poll: This parameter specifies how often Ansible should check for the status of the asynchronous task. In this case, the value "0" indicates that Ansible should not check for the status at all.
+  become: yes
+  become_method: sudo
+
+- name: Wait for the server to come back online
+  wait_for_connection:
+    timeout: 300
+    delay: 10
+
+- name: create directory
+  file:
+    name: sonarqube
+    path: "{{ SonarQubeDir }}"
+    state: directory
+
+- name: Push SonarQubeApp
+  get_url:
+    url: "https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-8.3.0.34182.zip"
+    dest: /root/sonarqube
+  notify:
+    - Install Unzip package
+  
+- meta: flush_handlers
+
+- name: Unzip file
+  unarchive:
+    src: /root/sonarqube/sonarqube-8.3.0.34182.zip
+    dest: /root/sonarqube/
+    remote_src: yes
+
+- name: moving it and rename it 
+  command: mv /root/sonarqube/sonarqube-8.3.0.34182 /opt/sonarqube
+
+- name: Create SonarQube Group
+  group:
+    name: sonar
+    state: present
+
+- name: Create SonarQube user
+  user:
+    name: sonar
+    comment: "SonarQube user"
+    home: /opt/sonarqube/
+    group: sonar
+  notify: 
+    - Change Owner of the Directory
+
+- meta: flush_handlers
+
+- name: Push SonarQube Config file
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop: "{{ template_files }}"
+  notify:
+    - Reload systemd daemon
+
+- meta: flush_handlers
+
+- name: Enable and start SonarQube
+  systemd:
+    name: sonarqube
+    enabled: yes
+    state: started
+
+

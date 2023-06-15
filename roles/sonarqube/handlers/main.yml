@@ -1,0 +1,15 @@
+---
+- name: Install Unzip package
+  dnf:
+    name: 
+      - unzip
+
+- name: Change Owner of the Directory
+  file:
+    path: /opt/sonarqube
+    owner: sonar
+    group: sonar
+    recurse: yes
+
+- name: Reload systemd daemon
+  command: systemctl daemon-reload

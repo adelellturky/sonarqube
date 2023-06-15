@@ -1,0 +1,6 @@
+---
+- hosts: SonarServer
+  roles:
+    - docker
+    - DBPostgresql
+    - sonarqube

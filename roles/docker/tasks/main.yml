@@ -1,0 +1,44 @@
+---
+- name: Push Docker Repo
+  command: dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+  notify:
+    - dnf_clean
+    - Removing_Some_Container_Pkgs
+
+- meta: flush_handlers
+
+- name: Install Docker 
+  dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+    state: latest
+
+- name: Start and Enable Docker Service
+  systemd:
+    name: docker
+    enabled: yes
+    state:  started
+
+- name: Verify Docker Installation
+  command: docker run hello-world
+  register: HelloMsg
+  notify:
+    - Print-Msg
+    
+- meta: flush_handlers
+
+- name: Push Docker compose
+  get_url:
+    url: "https://github.com/docker/compose/releases/latest/download/docker-compose-{{ ansible_system | lower }}-{{ ansible_architecture }}"
+    dest: /usr/local/bin/docker-compose
+    mode: 'a+x'
+
+- name: Verify Docker Compose Installation
+  command: docker-compose --version 
+  register: VersionMsg
+  notify: 
+    - PrintVersion
+
+- meta: flush_handlers
